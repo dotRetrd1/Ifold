@@ -3,17 +3,16 @@ import numpy as np
 import plotly.graph_objects as go
 from pathlib import Path
 
-# Import your custom modules
 from BBDataSet import BBDataset
 from model import iFoldResNet
 
 def distance_to_3d(dist_matrix):
 
-#Translates 2D distance matrix to 3D coors (eigendecomposition of the Gram matrix)
+#translate 2D distance matrix to 3D coors (eigendecomposition of the Gram matrix)
     N = dist_matrix.shape[0]
     
     D_sq = dist_matrix ** 2
-    #Create the Centering Matrix (J) to move the protein to the origin
+    #create the Centering Matrix (J) to move the protein to the origin
     #J = I - (1/N) * 1 * 1^T
     J = np.eye(N) - np.ones((N, N)) / N
     
@@ -26,7 +25,6 @@ def distance_to_3d(dist_matrix):
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]
     
-    #extract the top 3 dimensions for X, Y, Z space
     #(prevent complex numbers)
     top_3_evals = np.maximum(eigenvalues[:3], 0)
     top_3_evecs = eigenvectors[:, :3]

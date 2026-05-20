@@ -18,7 +18,7 @@ data_dir.mkdir(parents=True, exist_ok=True)
 temp_dir = project_root / "data" / "trainingData" / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)
 
-# ---------find candidates (beta barrels)---------
+# ---------find candidates (just beta barrels)---------
 print("Downloading pure CATH database classifications...")
 cath_url = "https://download.cathdb.info/cath/releases/latest-release/cath-classification-data/cath-domain-list.txt"
 cath_txt_path = temp_dir / "cath-domain-list.txt"
@@ -34,7 +34,8 @@ with open(cath_txt_path, "r") as f:
             pdb_id = parts[0][:4].upper()
             cath_barrel_ids.add(pdb_id)
 
-print("Querying the PDB for high-quality structures...")
+print("Querying PDB")
+#q1 xRay Diffraction
 q_method = attrs.exptl.method == "X-RAY DIFFRACTION"
 q_res = attrs.rcsb_entry_info.resolution_combined <= 3.5
 q_lengthLow = attrs.entity_poly.rcsb_sample_sequence_length >= 100
@@ -46,32 +47,29 @@ rcsb_ids = set(rcsb_query("entry"))
 if os.path.exists(cath_txt_path):
     os.remove(cath_txt_path)
 
-#mode selection
-print("\n==================================================")
-print("SELECT DATASET MODE:")
-print("1: General Pre-Training (Thousands of diverse proteins)")
+print("mode select:")
+print("1: General Pre-Training (all protein)")
 print("2: Specialized Fine-Tuning (Strictly Beta-Barrels)")
-print("==================================================")
+print("\n")
 mode = input("Enter 1 or 2: ")
 
 if mode == "1":
     training_ids = list(rcsb_ids)
-    print(f"\n[MODE 1] Found {len(training_ids)} total diverse candidates.")
+    print(f"\n[MODE 1] Found {len(training_ids)} total candidates.")
 else:
     training_ids = list(cath_barrel_ids.intersection(rcsb_ids))
-    print(f"\n[MODE 2] Found {len(training_ids)} pristine beta-barrel candidates.")
+    print(f"\n[MODE 2] Found {len(training_ids)} beta-barrel candidates.")
 
-# ---------selection---------
+
 try:
-    HOW_MANY_TO_DOWNLOAD = int(input(f"How many successful pristine targets do you want? (1-{len(training_ids)}): "))
+    HOW_MANY_TO_DOWNLOAD = int(input(f"How many? (1-{len(training_ids)}): "))
 except ValueError:
     HOW_MANY_TO_DOWNLOAD = 10
 
 target_ids = list(training_ids)
 random.shuffle(target_ids)
-print(f"\nInitiating hunt for {HOW_MANY_TO_DOWNLOAD} pristine targets...\n")
+print(f"\nInitiating search for {HOW_MANY_TO_DOWNLOAD} proteins...\n")
 
-# ---------gather data & QC ----------
 parser = MMCIFParser(QUIET=True)
 resolved_sequences = {} 
 
@@ -104,7 +102,7 @@ while successful_count < HOW_MANY_TO_DOWNLOAD and id_index < len(target_ids):
         if longest_chain is None:
             continue
 
-        # --- QC --- (continuous backbone, excessive unknowns, and minimum length) 
+        # (continuous backbone, excessive unknowns and minimum length) 
         ca_coords = []
         actual_sequence = ""
         expected_res_id = None
@@ -112,7 +110,7 @@ while successful_count < HOW_MANY_TO_DOWNLOAD and id_index < len(target_ids):
         unknown_aa_count = 0
         
         for residue in longest_chain:
-            # Skip hetero-atoms (water, ligands)
+            #skip hetero-atoms (water, ligands)
             if residue.get_id()[0] != ' ':
                 continue
                 

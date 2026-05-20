@@ -28,12 +28,11 @@ PHYSICS_DICT = {
     'X': [ 0.00,  0.0,  0.0]    # Unknown/Dummy
 }
 
-# ---------setup dirs---------
+
 script_dir = Path(__file__).parent
 project_root = script_dir.parent.parent
 data_dir = project_root / "data" / "trainingData" / "ca_coords"
 
-# ---------load data---------
 seq_file = data_dir / "sequences.json"
 if not seq_file.exists():
     raise FileNotFoundError("sequences.json not found! Please run buildDataset.py first.")
@@ -44,7 +43,7 @@ with open(seq_file, "r") as f:
 # ---------generate input features---------
 def generate_input_features(sequence):
     """
-    Convert the 1D string sequence into an N x 4 input tensor.
+    Convert 1D string sequence into N x 4 input tensor. (I still dont really get tensors)
     [Volume, Charge, Hydrophobicity, Sinusoidal_Position]
     """
     N = len(sequence)
@@ -63,7 +62,6 @@ def generate_input_features(sequence):
         
     return feature_matrix
 
-# ---------process and save matrices to disk---------
 print("generating Input and Ground Truth Matrices")
 processed_count = 0
 

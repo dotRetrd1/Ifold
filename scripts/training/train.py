@@ -31,7 +31,7 @@ def train_ifold():
     dataset = BBDataset(data_dir=data_dir, maxlen=350)
     
     if len(dataset) == 0:
-        print("Error: no data found. Make sure buildDataset.py and prepData.py ran successfully")
+        print("Error: no data found; Make sure buildDataset.py and prepData.py ran successfully")
         return
         
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -47,7 +47,7 @@ def train_ifold():
             model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
             print(f"--> SUCCESSFULLY LOADED PRE-TRAINED WEIGHTS: {TRANSFER_LEARNING_CHECKPOINT}")
         else:
-            print(f"--> ERROR: Could not find {TRANSFER_LEARNING_CHECKPOINT}. Starting fresh.")
+            print(f"--> Could not find {TRANSFER_LEARNING_CHECKPOINT}. making new weights")
     
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -90,13 +90,12 @@ def train_ifold():
         
         print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | MSE: {avg_mse:.4f} | Triangle: {avg_triangle:.4f}")
 
-        #checkpoint (every 10 epochs)
+        #save (every 10 epochs)
         if (epoch + 1) % 10 == 0:
             checkpoint_path = script_dir / f"ifold_checkpoint_epoch_{epoch+1}.pth"
             torch.save(model.state_dict(), checkpoint_path)
-            print(f"    [!] Backup Checkpoint saved: {checkpoint_path.name}")
+            print(f"[!] Backup Checkpoint saved: {checkpoint_path.name}")
 
-    #finally save
     save_path = script_dir / "ifold_weights_final.pth"
     torch.save(model.state_dict(), save_path)
     print("\n-------------------- TRAINING COMPLETE --------------------")
