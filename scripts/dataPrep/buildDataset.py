@@ -35,7 +35,6 @@ with open(cath_txt_path, "r") as f:
             cath_barrel_ids.add(pdb_id)
 
 print("Querying PDB")
-#q1 xRay Diffraction
 q_method = attrs.exptl.method == "X-RAY DIFFRACTION"
 q_res = attrs.rcsb_entry_info.resolution_combined <= 3.5
 q_lengthLow = attrs.entity_poly.rcsb_sample_sequence_length >= 100
