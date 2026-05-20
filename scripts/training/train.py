@@ -18,10 +18,9 @@ def train_ifold():
     EPOCHS = 100
     
     # -----------------------------------------------------------------
-    # TRANSFER LEARNING SWITCH:
-    # to load pre-trained weights, put the filename here
+    # to start with a pretrained model
     # Otherwise, leave it as None to train a fresh brain.
-    # Example: TRANSFER_LEARNING_CHECKPOINT = "ifold_weights_general.pth"
+    # eg: TRANSFER_LEARNING_CHECKPOINT = "ifold_weights_general.pth"
     # -----------------------------------------------------------------
     TRANSFER_LEARNING_CHECKPOINT = "ifold_checkpoint_epoch_30.pth"
     

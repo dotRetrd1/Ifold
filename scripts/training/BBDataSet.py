@@ -18,7 +18,7 @@ class BBDataset(Dataset):
         pdb_id = feat_path.stem.split('_')[0]
         dist_path = self.data_dir / f"{pdb_id}_dist.npy"
 
-        features = torch.tensor(np.load(feat_path), dtype=torch.float32) #(N, 4)
+        features = torch.tensor(np.load(feat_path), dtype=torch.float32) #(N,4)
         distances = torch.tensor(np.load(dist_path), dtype=torch.float32) #(N,N)
 
         N = features.shape[0]

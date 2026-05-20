@@ -33,7 +33,7 @@ script_dir = Path(__file__).parent
 project_root = script_dir.parent.parent
 data_dir = project_root / "data" / "trainingData" / "ca_coords"
 
-# ---------load handoff data---------
+# ---------load data---------
 seq_file = data_dir / "sequences.json"
 if not seq_file.exists():
     raise FileNotFoundError("sequences.json not found! Please run buildDataset.py first.")
