@@ -22,7 +22,6 @@ temp_dir.mkdir(parents=True, exist_ok=True)
 print("Downloading pure CATH database classifications...")
 cath_url = "https://download.cathdb.info/cath/releases/latest-release/cath-classification-data/cath-domain-list.txt"
 cath_txt_path = temp_dir / "cath-domain-list.txt"
-
 urllib.request.urlretrieve(cath_url, cath_txt_path)
 
 cath_barrel_ids = set()
@@ -35,7 +34,7 @@ with open(cath_txt_path, "r") as f:
             pdb_id = parts[0][:4].upper()
             cath_barrel_ids.add(pdb_id)
 
-print("Querying the PDB for high-quality X-Ray structures...")
+print("Querying the PDB for high-quality structures...")
 q_method = attrs.exptl.method == "X-RAY DIFFRACTION"
 q_res = attrs.rcsb_entry_info.resolution_combined <= 3.5
 q_lengthLow = attrs.entity_poly.rcsb_sample_sequence_length >= 100
@@ -44,32 +43,51 @@ q_lengthUpp = attrs.entity_poly.rcsb_sample_sequence_length <= 350
 rcsb_query = q_method & q_res & q_lengthLow & q_lengthUpp
 rcsb_ids = set(rcsb_query("entry"))
 
-training_ids = list(cath_barrel_ids.intersection(rcsb_ids))
-print(f"Found {len(training_ids)} total pristine candidates.")
-
 if os.path.exists(cath_txt_path):
     os.remove(cath_txt_path)
 
+#mode selection
+print("\n==================================================")
+print("SELECT DATASET MODE:")
+print("1: General Pre-Training (Thousands of diverse proteins)")
+print("2: Specialized Fine-Tuning (Strictly Beta-Barrels)")
+print("==================================================")
+mode = input("Enter 1 or 2: ")
+
+if mode == "1":
+    training_ids = list(rcsb_ids)
+    print(f"\n[MODE 1] Found {len(training_ids)} total diverse candidates.")
+else:
+    training_ids = list(cath_barrel_ids.intersection(rcsb_ids))
+    print(f"\n[MODE 2] Found {len(training_ids)} pristine beta-barrel candidates.")
+
 # ---------selection---------
 try:
-    HOW_MANY_TO_DOWNLOAD = int(input(f"How many beta barrels to download? (1-{len(training_ids)})\n"))
+    HOW_MANY_TO_DOWNLOAD = int(input(f"How many successful pristine targets do you want? (1-{len(training_ids)}): "))
 except ValueError:
     HOW_MANY_TO_DOWNLOAD = 10
 
-target_ids = random.sample(training_ids, min(HOW_MANY_TO_DOWNLOAD, len(training_ids)))
-print(f"Selected {len(target_ids)} random targets for processing.\n")
+target_ids = list(training_ids)
+random.shuffle(target_ids)
+print(f"\nInitiating hunt for {HOW_MANY_TO_DOWNLOAD} pristine targets...\n")
 
-# ---------gather data---------
+# ---------gather data & QC ----------
 parser = MMCIFParser(QUIET=True)
-resolved_sequences = {} #Dictionary to hold the physically resolved sequences
+resolved_sequences = {} 
 
-for pdb_id in target_ids:
+successful_count = 0
+id_index = 0
+
+while successful_count < HOW_MANY_TO_DOWNLOAD and id_index < len(target_ids):
+    pdb_id = target_ids[id_index]
+    id_index += 1
+    
     url = f"https://files.rcsb.org/download/{pdb_id}.cif"
     temp_cif_path = temp_dir / f"{pdb_id}.cif"
     npy_path = data_dir / f"{pdb_id}_ca.npy"
 
     try:
-        print(f"Processing {pdb_id}...")
+        print(f"[{successful_count}/{HOW_MANY_TO_DOWNLOAD}] Inspecting {pdb_id}...")
         urllib.request.urlretrieve(url, str(temp_cif_path))
         structure = parser.get_structure(pdb_id, str(temp_cif_path))
         
@@ -86,31 +104,57 @@ for pdb_id in target_ids:
         if longest_chain is None:
             continue
 
-        #extract coords abd the true physical sequence simultaneously
+        # --- QC --- (continuous backbone, excessive unknowns, and minimum length) 
         ca_coords = []
         actual_sequence = ""
+        expected_res_id = None
+        is_continuous = True
+        unknown_aa_count = 0
         
         for residue in longest_chain:
+            # Skip hetero-atoms (water, ligands)
+            if residue.get_id()[0] != ' ':
+                continue
+                
             if 'CA' in residue:
+                current_res_id = residue.get_id()[1]
+                
+                #missing physical gaps
+                if expected_res_id is not None and current_res_id != expected_res_id:
+                    is_continuous = False
+                    break 
+                
                 try:
-                    aa_char = protein_letters_3to1.get(residue.get_resname(), 'X')
+                    res_name = residue.get_resname().capitalize()
+                    aa_char = protein_letters_3to1.get(res_name, 'X')
+                    
+                    if aa_char == 'X':
+                        unknown_aa_count += 1
+                        
                     actual_sequence += aa_char
                     ca_coords.append(residue['CA'].get_coord())
+                    expected_res_id = current_res_id + 1
                 except KeyError:
-                    # Skip unrecognized ligands/modified residues gracefully
                     continue
 
-        ca_matrix = np.array(ca_coords)
-        
-        if ca_matrix.shape[0] < 50:
-             print(f" -> Skipping {pdb_id}: Main chain too short after resolution check.")
-             continue
+        if not is_continuous:
+            print(f" -> Skipping {pdb_id}: QC Failed (Invisible gap in backbone).")
+            continue
+            
+        if unknown_aa_count > 3:
+            print(f" -> Skipping {pdb_id}: QC Failed (Too many unknown 'X' amino acids).")
+            continue
 
-        #save coordinates to disk
+        ca_matrix = np.array(ca_coords)
+        if ca_matrix.shape[0] < 50:
+             print(f" -> Skipping {pdb_id}: QC Failed (Main chain too short).")
+             continue
+        # -----------------------
+
+        #save cooards
         np.save(npy_path, ca_matrix)
-        
-        #save sequence to dictionary
         resolved_sequences[pdb_id] = actual_sequence
+        successful_count += 1
         print(f" -> Success! Saved {npy_path.name} | Resolved Length: {len(actual_sequence)}")
 
     except Exception as e:
@@ -120,9 +164,8 @@ for pdb_id in target_ids:
         if temp_cif_path.exists():
             os.remove(temp_cif_path)
 
-#save the dictionary so prepData.py can access the physical sequences
 seq_path = data_dir / "sequences.json"
 with open(seq_path, "w") as f:
     json.dump(resolved_sequences, f, indent=4)
 
-print(f"\nData pipeline complete! Saved {len(resolved_sequences)} valid targets to {data_dir}")
+print(f"\nData pipeline complete! Saved {len(resolved_sequences)} pristine targets to {data_dir}")

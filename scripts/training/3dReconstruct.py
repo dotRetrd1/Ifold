@@ -8,47 +8,39 @@ from BBDataSet import BBDataset
 from model import iFoldResNet
 
 def distance_to_3d(dist_matrix):
-    """
-    Translates a 2D distance matrix into 3D coordinates using Eigendecomposition.
-    """
+
+#Translates 2D distance matrix to 3D coors (eigendecomposition of the Gram matrix)
     N = dist_matrix.shape[0]
     
-    # 1. Square the distance matrix
     D_sq = dist_matrix ** 2
-    
-    # 2. Create the Centering Matrix (J) to move the protein to the origin
-    # J = I - (1/N) * 1 * 1^T
+    #Create the Centering Matrix (J) to move the protein to the origin
+    #J = I - (1/N) * 1 * 1^T
     J = np.eye(N) - np.ones((N, N)) / N
     
-    # 3. Double-center to calculate the Gram Matrix (G)
+    #calc the Gram Matrix (G) (double centering)
     G = -0.5 * J.dot(D_sq).dot(J)
-    
-    # 4. Eigendecomposition (Finding the spatial basis vectors)
     eigenvalues, eigenvectors = np.linalg.eigh(G)
     
-    # Sort eigenvalues and eigenvectors in descending order (largest first)
+    #sortin descending order (largest first)
     idx = np.argsort(eigenvalues)[::-1]
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]
     
-    # 5. Extract the top 3 dimensions for X, Y, Z space
-    # (Clamp negative eigenvalues to 0 to prevent complex numbers if the network's geometry is slightly imperfect)
+    #extract the top 3 dimensions for X, Y, Z space
+    #(prevent complex numbers)
     top_3_evals = np.maximum(eigenvalues[:3], 0)
     top_3_evecs = eigenvectors[:, :3]
     
-    # Coordinates = Eigenvectors * sqrt(Eigenvalues)
     coords = top_3_evecs * np.sqrt(top_3_evals)
     
     return coords
 
 
 def visualize_protein_3d(true_coords, pred_coords):
-    """
-    Renders an interactive 3D plot comparing the Ground Truth to the iFold Prediction.
-    """
+#actually render
     fig = go.Figure()
 
-    # Ground Truth Trace (Blue)
+    #ground truth trace (Blue)
     fig.add_trace(go.Scatter3d(
         x=true_coords[:, 0], y=true_coords[:, 1], z=true_coords[:, 2],
         mode='lines+markers',
@@ -57,7 +49,7 @@ def visualize_protein_3d(true_coords, pred_coords):
         name='Ground Truth (Actual)'
     ))
 
-    # iFold Prediction Trace (Red)
+    #iFold Prediction Trace (Red)
     fig.add_trace(go.Scatter3d(
         x=pred_coords[:, 0], y=pred_coords[:, 1], z=pred_coords[:, 2],
         mode='lines+markers',
@@ -77,12 +69,12 @@ def visualize_protein_3d(true_coords, pred_coords):
         legend=dict(x=0.02, y=0.98)
     )
     
-    # Opens the interactive plot in your default web browser
+    #open in browser
     fig.show()
 
 
 def main():
-    # Setup paths
+    #setup paths
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
     data_dir = project_root / "data" / "trainingData" / "ca_coords"
@@ -95,24 +87,24 @@ def main():
     device = torch.device("cpu")
     print("Loading Trained iFold Network...")
 
-    # Load Model
+    #load Model
     model = iFoldResNet().to(device)
     model.load_state_dict(torch.load(weights_path, map_location=device, weights_only=True))
     model.eval()
 
-    # Load Dataset
+    #load Dataset
     print("Loading Test Protein...")
     dataset = BBDataset(data_dir=data_dir, maxlen=350)
     
-    # Let's test it on the first protein in the dataset
+    #Test on the first protein FOR NOW (change later please dont forget (Im calling that I will forget))
     features, true_dist, mask = dataset[0]
     seq_len = int(mask[0, :].sum().item())
     
-    # Forward Pass
+    #forward Pass
     with torch.no_grad():
         pred_dist = model(features.unsqueeze(0).to(device)).squeeze(0)
     
-    # Slice off the padding
+    #slice off the padding
     pred_dist = pred_dist[:seq_len, :seq_len].numpy()
     true_dist = true_dist[:seq_len, :seq_len].numpy()
 
