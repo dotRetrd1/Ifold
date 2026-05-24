@@ -23,8 +23,10 @@ def train_ifold():
     LEARNING_RATE = config["training"]["learning_rate"]
     EPOCHS = config["training"]["epochs"]
     CHUNK_SIZE = config["training"]["loss_chunk_size"]
+    LAMBDA_TRIANGLE = config["training"]["lambda_triangle"]
     USE_PRETRAINED = config["training"].get("use_pretrained", False)
     TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
+    CHECKPOINT_INTERVAL = config["training"].get("checkpoint_interval", 10)
     
     if USE_PRETRAINED:
         TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
@@ -69,6 +71,13 @@ def train_ifold():
     for epoch in range(EPOCHS):
         model.train() 
         
+        if epoch < 5:
+            current_lambda = 0.0
+        elif epoch < 15:
+            current_lambda = 0.1
+        else:
+            current_lambda = 0.5
+
         epoch_loss = 0.0
         epoch_l1 = 0.0
         #epoch_mse = 0.0
@@ -86,7 +95,7 @@ def train_ifold():
             with autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 predictions = model(features)
                 #l1 instead of mse
-                total_loss, l1, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=7.5)
+                total_loss, l1, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=current_lambda)
             
             #backward Pass
             scaler.scale(total_loss).backward()
@@ -106,8 +115,8 @@ def train_ifold():
         
         print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Triangle: {avg_triangle:.4f}")
 
-        #save (every 10 epochs)
-        if (epoch + 1) % 10 == 0:
+        #save (every CHECKPOINT_INTERVAL epochs)
+        if (epoch + 1) % CHECKPOINT_INTERVAL == 0:
             checkpoint_path = weight_path / "recentTrain" / f"ifold_checkpoint_epoch_{epoch+1}.pth"
             torch.save(model.state_dict(), checkpoint_path)
             print(f"[!] Backup Checkpoint saved: {checkpoint_path.name}")

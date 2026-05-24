@@ -1,5 +1,3 @@
-lightweight "mini AlphaFold" pipeline that predicts the 3D structure of a protein based on its amino acid sequence. 
-
 ## Setup
 1. Clone this repo.
 2. Create your own virtual environment and install the requirements (PyTorch, BioPython, Plotly, etc.).

@@ -1,6 +1,10 @@
+import yaml
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+
+with open("config.yaml", "r") as f:
+    config = yaml.safe_load(f)
 
 class dimUp(nn.Module):
     def __init__(self):
@@ -42,10 +46,13 @@ class DilatedResidualBlock(nn.Module):
         out += residual
         return F.relu(out)
 
+input_feat = config['model']['input_features']
+hidden = config['model']['hidden_channels']
+blocks = config['model']['num_blocks']
 
 class iFoldResNet(nn.Module):
     #takes in (B, N, 4) ; out (B, N, N) distance matrix
-    def __init__(self, input_features=4, hidden_channels=64, num_blocks=4):
+    def __init__(self, input_features=input_feat, hidden_channels=hidden, num_blocks=blocks):
         super().__init__()
         
         self.dim_jump = dimUp()
