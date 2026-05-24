@@ -4,6 +4,10 @@ import sys
 import yaml
 import webbrowser
 from pathlib import Path
+import os
+
+os.environ["MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK"] = "0"
+os.environ["MIOPEN_LOG_LEVEL"] = "1"  #Suppress MIOpen warnings
 
 project_root = Path(__file__).parent
 config_path = project_root / "config.yaml"

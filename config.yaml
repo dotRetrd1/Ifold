@@ -11,7 +11,7 @@ training:
   epochs: 50
   batch_size: 16
   learning_rate: 0.0004
-  pretrained_model: "ifold_weights.pth"
+  pretrained_model: none
 
 model:
   input_features: 4

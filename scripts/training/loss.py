@@ -18,7 +18,7 @@ def triangle_inequality_loss(pred, mask):
     d_kj = pred.unsqueeze(1) # B x 1 x N x N
     d_ij = pred.unsqueeze(3) # B x N x N x 1
 
-    violation = F.relu(d_ik + d_kj - d_ij) # B x N x N x N
+    violation = F.relu(d_ij - (d_ik + d_kj)) # B x N x N x N
 
     mask_3d = mask.unsqueeze(3) & mask.unsqueeze(2) & mask.unsqueeze(1) # B x N x N x N 
 

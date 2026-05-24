@@ -16,8 +16,7 @@ def evaluate_ifold():
         print("Error: Could not find ifold_weights.pth. chceck that training finished and the weights are in the right place.")
         return
 
-    #I hate having an AMD gpu Ihate haivng an AMD gpu I hate having an AMD gpu
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Loading iFold Architecture...")
 
     #initialize model and load the trained weights

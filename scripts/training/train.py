@@ -16,19 +16,20 @@ def train_ifold():
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
     data_dir = project_root / "data" / "trainingData" / "ca_coords"
+    weight_path = project_root / "data" / "trainingData" / "models"
     
     BATCH_SIZE = config["training"]["batch_size"]
     LEARNING_RATE = config["training"]["learning_rate"]
     EPOCHS = config["training"]["epochs"]
+    USE_PRETRAINED = config["training"].get("use_pretrained", False)
     TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
     
-    if (not input("Start with a pretrained model? (y/n): ").lower() == 'y'):
-        TRANSFER_LEARNING_CHECKPOINT = None
-    elif(not input("is {TRANSFER_LEARNING_CHECKPOINT} the right model? (y/n): ").lower() == 'y'):
-            TRANSFER_LEARNING_CHECKPOINT = input("Enter the filename of the checkpoint (e.g., ifold_weights_general.pth): ")
-            print(f"--> TRANSFER LEARNING ENABLED: {TRANSFER_LEARNING_CHECKPOINT}")
-    else:
+    if USE_PRETRAINED:
+        TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
         print(f"--> TRANSFER LEARNING ENABLED: {TRANSFER_LEARNING_CHECKPOINT}")
+    else:
+        TRANSFER_LEARNING_CHECKPOINT = None
+        print("--> TRANSFER LEARNING DISABLED: Training from scratch")
         
         
     
@@ -50,12 +51,12 @@ def train_ifold():
     
     #load previous weights if Transfer Learning is active
     if TRANSFER_LEARNING_CHECKPOINT:
-        weight_path = project_root / "data" / "trainingData" / "models" / TRANSFER_LEARNING_CHECKPOINT
-        if weight_path.exists():
-            model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
+        checkpoint_file = weight_path / TRANSFER_LEARNING_CHECKPOINT
+        if checkpoint_file.exists():
+            model.load_state_dict(torch.load(checkpoint_file, map_location=device, weights_only=True))
             print(f"--> SUCCESSFULLY LOADED PRE-TRAINED WEIGHTS: {TRANSFER_LEARNING_CHECKPOINT}")
         else:
-            print(f"--> Could not find {TRANSFER_LEARNING_CHECKPOINT}. making new weights")
+            print(f"--> Could not find {TRANSFER_LEARNING_CHECKPOINT}. Making new weights.")
     
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 

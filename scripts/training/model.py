@@ -67,12 +67,13 @@ class iFoldResNet(nn.Module):
 #main
     def forward(self, x):
         #1D to 2D 
-        out = self.dim_jump(x) # Shape: (B, 8, N, N)
-        out = self.initial_conv(out) # Shape: (B, 64, N, N)
+        out = self.dim_jump(x) #shape: (B, 8, N, N)
+        out = self.initial_conv(out) #shape: (B, 64, N, N)
         #Convolutions
-        out = self.resnet_blocks(out) # Shape: (B, 64, N, N)
+        out = self.resnet_blocks(out) #shape: (B, 64, N, N)
         #Output Distance Map
-        out = self.final_conv(out) # Shape: (B, 1, N, N)
+        out = self.final_conv(out) #shape: (B, 1, N, N)
+        out = (out + out.transpose(-1, -2)) / 2 #Symmetrize the output
         out = F.relu(out)
         #(B, 1, N, N) -> (B, N, N)
         return out.squeeze(1)
