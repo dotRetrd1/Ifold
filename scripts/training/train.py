@@ -17,7 +17,7 @@ def train_ifold():
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
     data_dir = project_root / "data" / "trainingData" / "ca_coords"
-    weight_path = project_root / "data" / "trainingData" / "models"
+    weight_path = project_root / "data" / "models"
     
     BATCH_SIZE = config["training"]["batch_size"]
     LEARNING_RATE = config["training"]["learning_rate"]
@@ -110,7 +110,7 @@ def train_ifold():
             torch.save(model.state_dict(), checkpoint_path)
             print(f"[!] Backup Checkpoint saved: {checkpoint_path.name}")
 
-    save_path = weight_path / "recentTrain" / f"ifold_weights_epoch_{EPOCHS}.pth"
+    save_path = weight_path / "recentTrain" / f"ifold_weights.pth"
     torch.save(model.state_dict(), save_path)
     print("\n-------------------- TRAINING COMPLETE --------------------")
     print(f"Model weights successfully saved to: {save_path.name}")
