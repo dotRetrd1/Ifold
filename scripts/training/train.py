@@ -17,7 +17,11 @@ def train_ifold():
     #setup paths and hyperparams
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
-    data_dir = project_root / "data" / "trainingData" / "ca_coords"
+    mode = input("would you like to train on general proteins(1) or just Beta Barrels(2)? ").strip().lower()
+    if mode == "1":
+        data_dir = project_root / "data" / "trainingData" / "ca_coords"
+    else:
+        data_dir = project_root / "data" / "trainingData" / "BBData_ca_coords"
     weight_path = project_root / "data" / "models"
     
     BATCH_SIZE = config["training"]["batch_size"]
@@ -72,12 +76,12 @@ def train_ifold():
     for epoch in range(EPOCHS):
         model.train() 
         
-        if epoch < 5:
+        if epoch < 5 and not USE_PRETRAINED:
             current_lambda = 0.0
-        elif epoch < 15:
+        elif epoch < 15 and not USE_PRETRAINED: 
             current_lambda = 0.1
         else:
-            current_lambda = 0.25
+            current_lambda = LAMBDA_TRIANGLE
 
         epoch_loss = 0.0
         epoch_l1 = 0.0

@@ -141,6 +141,6 @@ class iFoldResNet(nn.Module):
         #Output Distance Map
         out = self.final_conv(out) #shape: (B, 1, N, N)
         out = (out + out.transpose(-1, -2)) / 2 #Symmetrize the output
-        out = F.softplus(out)
+        out = F.relu(out)
         #(B, 1, N, N) -> (B, N, N)
         return out.squeeze(1)

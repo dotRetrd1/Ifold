@@ -12,7 +12,9 @@ script_dir = Path(__file__).parent
 project_root = script_dir.parent.parent
 
 data_dir = project_root / "data" / "trainingData" / "ca_coords"
+BB_data_dir = project_root / "data" / "trainingData" / "BBData_ca_coords"
 data_dir.mkdir(parents=True, exist_ok=True)
+BB_data_dir.mkdir(parents=True, exist_ok=True)
 
 temp_dir = project_root / "data" / "trainingData" / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)
@@ -79,7 +81,10 @@ while successful_count < HOW_MANY_TO_DOWNLOAD and id_index < len(target_ids):
     
     url = f"https://files.rcsb.org/download/{pdb_id}.cif"
     temp_cif_path = temp_dir / f"{pdb_id}.cif"
-    npy_path = data_dir / f"{pdb_id}_ca.npy"
+    if mode == "2":
+        npy_path = BB_data_dir / f"{pdb_id}_ca.npy"
+    else:
+        npy_path = data_dir / f"{pdb_id}_ca.npy"
 
     try:
         print(f"[{successful_count}/{HOW_MANY_TO_DOWNLOAD}] Inspecting {pdb_id}...")
@@ -159,8 +164,11 @@ while successful_count < HOW_MANY_TO_DOWNLOAD and id_index < len(target_ids):
         if temp_cif_path.exists():
             os.remove(temp_cif_path)
 
-seq_path = data_dir / "sequences.json"
+if mode == "2":
+    seq_path = BB_data_dir / "sequences.json"
+else:
+    seq_path = data_dir / "sequences.json"
+
 with open(seq_path, "w") as f:
     json.dump(resolved_sequences, f, indent=4)
-
-print(f"\nData pipeline complete! Saved {len(resolved_sequences)} targets to {data_dir}")
+print(f"\nData pipeline complete! Saved {len(resolved_sequences)} targets to {seq_path.parent}")

@@ -16,8 +16,16 @@ AA_TO_INDEX = {
 script_dir = Path(__file__).parent
 project_root = script_dir.parent.parent
 data_dir = project_root / "data" / "trainingData" / "ca_coords"
+BB_data_dir = project_root / "data" / "trainingData" / "BBData_ca_coords"
 
-seq_file = data_dir / "sequences.json"
+
+
+mode = input("Would you like to prep data for general training (1) or beta-barrel specific training (2)? ")
+
+if mode == "1":
+    seq_file = data_dir / "sequences.json"
+if mode == "2":
+    seq_file = BB_data_dir / "sequences.json"
 if not seq_file.exists():
     raise FileNotFoundError("sequences.json not found! Please run buildDataset.py first.")
 
@@ -40,7 +48,12 @@ def generate_input_features(sequence):
 print("generating Input and Ground Truth Matrices")
 processed_count = 0
 
-for file in data_dir.glob("*_ca.npy"):
+if mode == "2":
+    data_path = BB_data_dir
+else:
+    data_path = data_dir
+
+for file in data_path.glob("*_ca.npy"):
     pdb_id = file.stem.split('_')[0]
     sequence = sequences.get(pdb_id)
     
@@ -52,12 +65,18 @@ for file in data_dir.glob("*_ca.npy"):
     
     #generate and save Ground Truth (N x N Distance Matrix)
     distance_matrix = squareform(pdist(coords, metric='euclidean'))
-    dist_path = data_dir / f"{pdb_id}_dist.npy"
+    if mode == "2":
+        dist_path = BB_data_dir / f"{pdb_id}_dist.npy"
+    else:
+        dist_path = data_dir / f"{pdb_id}_dist.npy"
     np.save(dist_path, distance_matrix)
     
     #generate and save Input Features (N x 4 Matrix)
     feature_matrix = generate_input_features(sequence)
-    feat_path = data_dir / f"{pdb_id}_features.npy"
+    if mode == "2":
+        feat_path = BB_data_dir / f"{pdb_id}_features.npy"
+    else:
+        feat_path = data_dir / f"{pdb_id}_features.npy"
     np.save(feat_path, feature_matrix)
     
     processed_count += 1
