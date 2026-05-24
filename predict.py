@@ -166,7 +166,7 @@ def main():
 
     #Forward Pass
     print("Running forward pass")
-    with torch.no_grad():
+    with torch.inference_mode():
         pred_dist_tensor = model(features).squeeze(0)
     
     pred_dist_numpy = pred_dist_tensor.cpu().numpy()

@@ -36,11 +36,11 @@ class DilatedResidualBlock(nn.Module):
         residual = x
         
         out = self.conv1(x)
-        out = self.bn1(out)
+        #out = self.bn1(out)
         out = F.relu(out)
         
         out = self.conv2(out)
-        out = self.bn2(out)
+        #out = self.bn2(out)
         
         #skip connection
         out += residual
@@ -62,8 +62,8 @@ class iFoldResNet(nn.Module):
         
         blocks = []
         for i in range(num_blocks):
-            #increasing dilation (1, 2, 4, 8)
-            dilation = 2 ** i 
+            #[1, 2, 4, 8, 16, 32]
+            dilation = min(2 ** i, 32)
             blocks.append(DilatedResidualBlock(hidden_channels, dilation=dilation))
             
         self.resnet_blocks = nn.Sequential(*blocks)
