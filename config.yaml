@@ -1,0 +1,23 @@
+paths: 
+  ca_coords: "./data/ca_coords"       
+  models: "./data/models" 
+  weights_file: "ifold_weights.pth"
+  inference_out: "./results"
+  scripts: "./scripts"
+  scripts_training: "./scripts/training"
+  scripts_datascripts: "./scripts/dataPrep"
+
+training:
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.0004
+  pretrained_model: "ifold_weights.pth"
+
+model:
+  input_features: 4
+  hidden_channels: 64
+  num_blocks: 4
+
+reconstruction:
+  resolution: 0.5                    
+  max_iterations: 100

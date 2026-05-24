@@ -2,6 +2,10 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from pathlib import Path
+import yaml
+
+with open("config.yaml", "r") as f:
+    config = yaml.safe_load(f)
 
 from BBDataSet import BBDataset
 from model import iFoldResNet
@@ -13,16 +17,20 @@ def train_ifold():
     project_root = script_dir.parent.parent
     data_dir = project_root / "data" / "trainingData" / "ca_coords"
     
-    BATCH_SIZE = 15
-    LEARNING_RATE = 5e-5
-    EPOCHS = 100
+    BATCH_SIZE = config["training"]["batch_size"]
+    LEARNING_RATE = config["training"]["learning_rate"]
+    EPOCHS = config["training"]["epochs"]
+    TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
     
-    # -----------------------------------------------------------------
-    # to start with a pretrained model
-    # Otherwise, leave it as None to train a fresh brain.
-    # eg: TRANSFER_LEARNING_CHECKPOINT = "ifold_weights_general.pth"
-    # -----------------------------------------------------------------
-    TRANSFER_LEARNING_CHECKPOINT = "ifold_checkpoint_epoch_30.pth"
+    if (not input("Start with a pretrained model? (y/n): ").lower() == 'y'):
+        TRANSFER_LEARNING_CHECKPOINT = None
+    elif(not input("is {TRANSFER_LEARNING_CHECKPOINT} the right model? (y/n): ").lower() == 'y'):
+            TRANSFER_LEARNING_CHECKPOINT = input("Enter the filename of the checkpoint (e.g., ifold_weights_general.pth): ")
+            print(f"--> TRANSFER LEARNING ENABLED: {TRANSFER_LEARNING_CHECKPOINT}")
+    else:
+        print(f"--> TRANSFER LEARNING ENABLED: {TRANSFER_LEARNING_CHECKPOINT}")
+        
+        
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Starting training on device: {device}\n")
@@ -42,7 +50,7 @@ def train_ifold():
     
     #load previous weights if Transfer Learning is active
     if TRANSFER_LEARNING_CHECKPOINT:
-        weight_path = script_dir / TRANSFER_LEARNING_CHECKPOINT
+        weight_path = project_root / "data" / "trainingData" / "models" / TRANSFER_LEARNING_CHECKPOINT
         if weight_path.exists():
             model.load_state_dict(torch.load(weight_path, map_location=device, weights_only=True))
             print(f"--> SUCCESSFULLY LOADED PRE-TRAINED WEIGHTS: {TRANSFER_LEARNING_CHECKPOINT}")
@@ -92,11 +100,11 @@ def train_ifold():
 
         #save (every 10 epochs)
         if (epoch + 1) % 10 == 0:
-            checkpoint_path = script_dir / f"ifold_checkpoint_epoch_{epoch+1}.pth"
+            checkpoint_path = weight_path / "recentTrain" / f"ifold_checkpoint_epoch_{epoch+1}.pth"
             torch.save(model.state_dict(), checkpoint_path)
             print(f"[!] Backup Checkpoint saved: {checkpoint_path.name}")
 
-    save_path = script_dir / "ifold_weights_final.pth"
+    save_path = weight_path / "recentTrain" / f"ifold_weights_epoch_{EPOCHS}.pth"
     torch.save(model.state_dict(), save_path)
     print("\n-------------------- TRAINING COMPLETE --------------------")
     print(f"Model weights successfully saved to: {save_path.name}")

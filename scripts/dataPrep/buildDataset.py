@@ -8,7 +8,6 @@ from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.Data.IUPACData import protein_letters_3to1
 from rcsbapi.search import search_attributes as attrs
 
-# ---------setup dirs---------
 script_dir = Path(__file__).parent
 project_root = script_dir.parent.parent
 
@@ -18,7 +17,6 @@ data_dir.mkdir(parents=True, exist_ok=True)
 temp_dir = project_root / "data" / "trainingData" / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)
 
-# ---------find candidates (just beta barrels)---------
 print("Downloading pure CATH database classifications...")
 cath_url = "https://download.cathdb.info/cath/releases/latest-release/cath-classification-data/cath-domain-list.txt"
 cath_txt_path = temp_dir / "cath-domain-list.txt"
@@ -165,4 +163,4 @@ seq_path = data_dir / "sequences.json"
 with open(seq_path, "w") as f:
     json.dump(resolved_sequences, f, indent=4)
 
-print(f"\nData pipeline complete! Saved {len(resolved_sequences)} pristine targets to {data_dir}")
+print(f"\nData pipeline complete! Saved {len(resolved_sequences)} targets to {data_dir}")

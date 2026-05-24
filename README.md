@@ -1,20 +1,40 @@
-Okay so:
+lightweight "mini AlphaFold" pipeline that predicts the 3D structure of a protein based on its amino acid sequence. 
 
-latest model is currently stored in the scripts folder alongside the train, eval and all other scripts basically
+## Setup
+1. Clone this repo.
+2. Create your own virtual environment and install the requirements (PyTorch, BioPython, Plotly, etc.).
+3. Set up your paths in `config.yaml`. (Make sure your `.pth` weights file is in the folder specified in the config).
 
-currently there isnt a fully trained model saved.
 
-to train:
-    1. Make sure you have the data you want to train on in data\trainingData\ca_coords
-        (if you dont)
-        - run buildDataset.py --> then run prepData.py (just follow the messages that pop up when you run)
-    2. Make sure you decide on the params in train.py (phys lambda triangle, epochs to run, batch size etc)
-    3. let it run for a while
+## To Run (User Inference)
 
-to evaluate: (random protein)
-    1. make sure the .pth weights file you want to evaluate (on a 2D map) is in scripts\training
-    2. check that the weights is named the same as in eval.py
-    3. run eval .py
+If you just want to predict a structure, you don't need to mess with any of the training scripts. Use the `predict.py` script at the root of the project.
 
-to run: (Ill update this when I finish it such that you can choose what protein or sequence you want the model to predict the shape of, currently its not that (itll give you the illusion of choice and just choose from the coords I have saved))
-    1. -
+**Option 1: I have a sequence**
+Drop in any amino acid sequence. The model will translate it into a 2D map and render a 3D interactive HTML plot.
+`python predict.py --sequence "[amino acid sequence]"`
+
+**Option 2: I have a PDB ID**
+If you pass a PDB ID, the script will automatically reach out to the RCSB PDB, fetch the exact sequence, run the prediction, and *also* download the actual ground truth 3D structure to render them side-by-side for comparison!
+`python predict.py --pdb_id [PDB ID]`
+
+*Note: All predictions, including a `.pdb` file and an interactive HTML visualizer, are automatically saved to your `results/` folder*
+
+
+## To Develop & Train
+
+If you are working on the model itself, use the `dev.py` CLI to run the pipeline. No need to dig into the subfolders.
+
+**1. Data Preparation**
+To download targets from the CATH/RCSB databases and process them into Nx4 feature matrices and NxN distance matrices:
+`python main.py data`
+*(Just follow the prompts in the terminal to choose how many proteins to download).*
+
+**2. Training**
+Make sure your hyperparameters (epochs, batch size, learning rate) are set in `config.yaml`, then run:
+`python main.py train`
+*(This will output backup checkpoints every 10 epochs to your models directory. With 32GB of RAM, you can push the batch size decently high).*
+
+**3. Review Results**
+if you want to look at a 3D plot you generated before without re-running the model then pass the name of the folder saved in your `results/` directory:
+`python main.py render [folder_name]`

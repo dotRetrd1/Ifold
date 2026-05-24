@@ -1,0 +1,11 @@
+{
+    "timestamp": "2026-05-24 12:39:34",
+    "pdb_id": "1DXT",
+    "sequence_length": 20,
+    "sequence": "MVHLTPEEKSAVTALWGKVN",
+    "files_generated": [
+        "metadata.json",
+        "interactive_plot.html",
+        "prediction.pdb"
+    ]
+}
