@@ -91,27 +91,22 @@ def fetch_ground_truth_from_pdb(pdb_id):
 
 #the model takes in an (N,4) so this just converts the sequence to it 
 def sequence_to_tensor(sequence):
-#[Hydrophobicity (Kyte-Doolittle), Mass (Norm), Charge (pH 7), pI (Norm)]
-    aa_features = {
-        'A': [ 1.8, 0.89,  0.0, 0.60], 'C': [ 2.5, 1.21,  0.0, 0.50],
-        'D': [-3.5, 1.33, -1.0, 0.27], 'E': [-3.5, 1.47, -1.0, 0.32],
-        'F': [ 2.8, 1.65,  0.0, 0.54], 'G': [-0.4, 0.75,  0.0, 0.59],
-        'H': [-3.2, 1.55,  0.1, 0.75], 'I': [ 4.5, 1.31,  0.0, 0.60],
-        'K': [-3.9, 1.46,  1.0, 0.97], 'L': [ 3.8, 1.31,  0.0, 0.59],
-        'M': [ 1.9, 1.49,  0.0, 0.57], 'N': [-3.5, 1.32,  0.0, 0.54],
-        'P': [-1.6, 1.15,  0.0, 0.63], 'Q': [-3.5, 1.46,  0.0, 0.56],
-        'R': [-4.5, 1.74,  1.0, 1.07], 'S': [-0.8, 1.05,  0.0, 0.56],
-        'T': [-0.7, 1.19,  0.0, 0.56], 'V': [ 4.2, 1.17,  0.0, 0.59],
-        'W': [-0.9, 2.04,  0.0, 0.58], 'Y': [-1.3, 1.81,  0.0, 0.56]
+    AA_TO_INDEX = {
+        'A':0, 'C':1, 'D':2, 'E':3,
+        'F':4, 'G':5, 'H':6, 'I':7,
+        'K':8, 'L':9, 'M':10,'N':11,
+        'P':12,'Q':13,'R':14,'S':15,
+        'T':16,'V':17,'W':18,'Y':19,
+        'X':20
     }
-    
-    unknown_feature = [0.0, 1.00, 0.0, 0.50]
-    
-    tensor_data = []
-    for char in sequence.upper():
-        tensor_data.append(aa_features.get(char, unknown_feature))
-        
-    return torch.tensor(tensor_data, dtype=torch.float32)
+
+    def sequence_to_tensor(sequence):
+        indices = [
+            AA_TO_INDEX.get(aa.upper(), 20)
+            for aa in sequence
+        ]
+
+        return torch.tensor(indices, dtype=torch.long)
 
 def main():
     parser = argparse.ArgumentParser(description="Predict 3D protein structure from sequence")

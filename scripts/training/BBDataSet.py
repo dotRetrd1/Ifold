@@ -18,7 +18,7 @@ class BBDataset(Dataset):
         pdb_id = feat_path.stem.split('_')[0]
         dist_path = self.data_dir / f"{pdb_id}_dist.npy"
 
-        features = torch.tensor(np.load(feat_path), dtype=torch.float32) #(N,4)
+        features = torch.tensor(np.load(feat_path), dtype=torch.long)
         distances = torch.tensor(np.load(dist_path), dtype=torch.float32) #(N,N)
 
         N = features.shape[0]
@@ -27,7 +27,7 @@ class BBDataset(Dataset):
         pad_len = self.maxlen - N
 
         #bottom pad
-        feat_padded = F.pad(features, (0, 0, 0, pad_len), "constant", 0)
+        feat_padded = F.pad(features, (0, pad_len), "constant", 20)
     
         #bottom and right pad
         dist_padded = F.pad(distances, (0, pad_len, 0, pad_len), "constant", 0)

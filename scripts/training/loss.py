@@ -30,11 +30,13 @@ def triangle_inequality_loss(pred, mask, chunk_size):
     total_violation = 0.0
     total_valid_elements = 0.0
     
-    d_kj = pred.unsqueeze(1)
-    mask_kj = mask.unsqueeze(1)
+    
     
     for start_i in range(0, N, chunk_size):
         end_i = min(start_i + chunk_size, N)
+
+        d_kj = pred.unsqueeze(1)
+        mask_kj = mask.unsqueeze(1)
         
         d_ik_chunk = pred[:, start_i:end_i, :].unsqueeze(2)
         d_ij_chunk = pred[:, start_i:end_i, :].unsqueeze(3)

@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from pathlib import Path
 import yaml
 
+
 with open("config.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -76,7 +77,7 @@ def train_ifold():
         elif epoch < 15:
             current_lambda = 0.1
         else:
-            current_lambda = 0.5
+            current_lambda = 0.25
 
         epoch_loss = 0.0
         epoch_l1 = 0.0
@@ -99,6 +100,9 @@ def train_ifold():
             
             #backward Pass
             scaler.scale(total_loss).backward()
+
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             
             #update the weights
             scaler.step(optimizer)
