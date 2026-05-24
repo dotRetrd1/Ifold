@@ -1,5 +1,6 @@
 import torch
 import torch.optim as optim
+from torch.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from pathlib import Path
 import yaml
@@ -21,6 +22,7 @@ def train_ifold():
     BATCH_SIZE = config["training"]["batch_size"]
     LEARNING_RATE = config["training"]["learning_rate"]
     EPOCHS = config["training"]["epochs"]
+    CHUNK_SIZE = config["training"]["loss_chunk_size"]
     USE_PRETRAINED = config["training"].get("use_pretrained", False)
     TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
     
@@ -59,6 +61,7 @@ def train_ifold():
             print(f"--> Could not find {TRANSFER_LEARNING_CHECKPOINT}. Making new weights.")
     
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    scaler = GradScaler(device.type, enabled=(device.type == 'cuda'))
 
     #training loop
     print("\n-------------------- TRAINING --------------------")
@@ -79,14 +82,16 @@ def train_ifold():
             optimizer.zero_grad()
             
             #forward Pass
-            predictions = model(features)
+            with autocast(device_type=device.type, enabled=(device.type == 'cuda')):
+                predictions = model(features)
+                total_loss, mse, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=7.5)
             
-            total_loss, mse, penalty = ifold_loss(predictions, targets, masks, lambda_triangle=7.5)
             #backward Pass
-            total_loss.backward()
+            scaler.scale(total_loss).backward()
             
             #update the weights
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             
             #for logging
             epoch_loss += total_loss.item()

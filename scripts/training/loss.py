@@ -13,25 +13,38 @@ def masked_mse_loss(pred, target, mask):
     mse = squared_diff.sum() / valid_elements
     return mse
 
-def triangle_inequality_loss(pred, mask):
-    d_ik = pred.unsqueeze(2) # B x N x 1 x N
-    d_kj = pred.unsqueeze(1) # B x 1 x N x N
-    d_ij = pred.unsqueeze(3) # B x N x N x 1
+def triangle_inequality_loss(pred, mask, chunk_size):
+    B, N, _ = pred.shape
+    total_violation = 0.0
+    total_valid_elements = 0.0
+    
+    d_kj = pred.unsqueeze(1)
+    mask_kj = mask.unsqueeze(1)
+    
+    for start_i in range(0, N, chunk_size):
+        end_i = min(start_i + chunk_size, N)
+        
+        d_ik_chunk = pred[:, start_i:end_i, :].unsqueeze(2)
+        d_ij_chunk = pred[:, start_i:end_i, :].unsqueeze(3)
+        
+        mask_ik_chunk = mask[:, start_i:end_i, :].unsqueeze(2)
+        mask_ij_chunk = mask[:, start_i:end_i, :].unsqueeze(3)
+        
+        violation_chunk = F.relu(d_ij_chunk - (d_ik_chunk + d_kj))
+        mask_3d_chunk = mask_ij_chunk & mask_ik_chunk & mask_kj
+        
+        valid_violations_chunk = violation_chunk * mask_3d_chunk.float()
+        
+        total_violation += valid_violations_chunk.sum()
+        total_valid_elements += mask_3d_chunk.sum()
 
-    violation = F.relu(d_ij - (d_ik + d_kj)) # B x N x N x N
-
-    mask_3d = mask.unsqueeze(3) & mask.unsqueeze(2) & mask.unsqueeze(1) # B x N x N x N 
-
-    valid_violations = violation * mask_3d.float() 
-    valid_elements = mask_3d.sum()
-
-    if valid_elements == 0:
+    if total_valid_elements == 0:
         return torch.tensor(0.0, device=pred.device, requires_grad=True)
-    return valid_violations.sum() / valid_elements #average violation per valid triplet
+    return total_violation / total_valid_elements
 
-def total_loss(pred, target, mask, lambda_triangle=0.1):
+def total_loss(pred, target, mask, chunk_size, lambda_triangle=0.1):
     mse = masked_mse_loss(pred, target, mask)
-    triangle_loss = triangle_inequality_loss(pred, mask)
+    triangle_loss = triangle_inequality_loss(pred, mask, chunk_size) 
     total_loss = mse + lambda_triangle * triangle_loss
-    return total_loss, mse, triangle_loss   
+    return total_loss, mse, triangle_loss
 

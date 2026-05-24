@@ -12,6 +12,7 @@ training:
   batch_size: 16
   learning_rate: 0.0004
   pretrained_model: none
+  loss_chunk_size: 32
 
 model:
   input_features: 4
