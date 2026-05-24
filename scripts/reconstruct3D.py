@@ -35,19 +35,47 @@ def distance_to_3d(dist_matrix):
     
     return coords
 
+def kabsch_align(P, Q):
+    """
+    Aligns coordinate matrix P (Prediction) to Q (Ground Truth).
+    Both matrices must have shape (N, 3).
+    """
+    centroid_P = np.mean(P, axis=0)
+    centroid_Q = np.mean(Q, axis=0)
+
+    #Center the points
+    p = P - centroid_P
+    q = Q - centroid_Q
+
+    #Calculate the covariance matrix
+    H = p.T @ q
+
+    U, S, Vt = np.linalg.svd(H)
+
+    #calc the optimal rot matrix
+    R = Vt.T @ U.T
+
+    if np.linalg.det(R) < 0:
+        Vt[2, :] *= -1
+        R = Vt.T @ U.T
+
+    #apply and translate back
+    P_aligned = (R @ p.T).T + centroid_Q
+    
+    return P_aligned
+
 
 def visualize_protein_3d(true_coords, pred_coords):
-#actually render
     fig = go.Figure()
 
-    #ground truth trace (Blue)
-    fig.add_trace(go.Scatter3d(
-        x=true_coords[:, 0], y=true_coords[:, 1], z=true_coords[:, 2],
-        mode='lines+markers',
-        marker=dict(size=4, color='blue', opacity=0.8),
-        line=dict(color='blue', width=4),
-        name='Ground Truth (Actual)'
-    ))
+    #Apply Kabsch Alignment (if true_coords exist)
+    if true_coords is not None:
+        if true_coords.shape == pred_coords.shape:
+            pred_coords = kabsch_align(pred_coords, true_coords)
+        else:
+            print(f"[!] Shape mismatch: Prediction is {pred_coords.shape}, Ground Truth is {true_coords.shape}.")
+            print("[!] Skipping 3D alignment. Displaying Prediction only.")
+            true_coords = None #so doesnt crash
 
     #iFold Prediction Trace (Red)
     fig.add_trace(go.Scatter3d(
@@ -58,8 +86,18 @@ def visualize_protein_3d(true_coords, pred_coords):
         name='iFold Prediction'
     ))
 
+    #Ground truth trace (Blue)
+    if true_coords is not None:
+        fig.add_trace(go.Scatter3d(
+            x=true_coords[:, 0], y=true_coords[:, 1], z=true_coords[:, 2],
+            mode='lines+markers',
+            marker=dict(size=4, color='blue', opacity=0.8),
+            line=dict(color='blue', width=4),
+            name='Ground Truth (Actual)'
+        ))
+
     fig.update_layout(
-        title="iFold 3D Reconstruction: Ground Truth vs. Prediction",
+        title="iFold 3D Reconstruction",
         scene=dict(
             xaxis_title="X (Å)",
             yaxis_title="Y (Å)",
@@ -69,6 +107,5 @@ def visualize_protein_3d(true_coords, pred_coords):
         legend=dict(x=0.02, y=0.98)
     )
     
-    #open in browser
     fig.show()
     return fig

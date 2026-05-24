@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-
+"""""
 def masked_mse_loss(pred, target, mask):
     masked_diff = (pred - target) * mask.float()
     squared_diff = masked_diff ** 2
@@ -12,6 +12,18 @@ def masked_mse_loss(pred, target, mask):
     
     mse = squared_diff.sum() / valid_elements
     return mse
+"""
+def masked_l1_loss(pred, target, mask):
+    masked_diff = (pred - target) * mask.float()
+    abs_diff = torch.abs(masked_diff)
+    valid_elements = mask.sum()
+
+    #handle case where there are no valid elements to avoid division by zero
+    if valid_elements == 0:
+        return torch.tensor(0.0, device=pred.device, requires_grad=True)
+    
+    l1 = abs_diff.sum() / valid_elements
+    return l1
 
 def triangle_inequality_loss(pred, mask, chunk_size):
     B, N, _ = pred.shape
@@ -35,16 +47,20 @@ def triangle_inequality_loss(pred, mask, chunk_size):
         
         valid_violations_chunk = violation_chunk * mask_3d_chunk.float()
         
+        num_violations = (valid_violations_chunk > 0).float().sum()
+        
         total_violation += valid_violations_chunk.sum()
-        total_valid_elements += mask_3d_chunk.sum()
+        total_valid_elements += num_violations
 
     if total_valid_elements == 0:
         return torch.tensor(0.0, device=pred.device, requires_grad=True)
-    return total_violation / total_valid_elements
+        
+    return total_violation / (total_valid_elements + 1e-8)
 
 def total_loss(pred, target, mask, chunk_size, lambda_triangle=0.1):
-    mse = masked_mse_loss(pred, target, mask)
+    l1 = masked_l1_loss(pred, target, mask)
     triangle_loss = triangle_inequality_loss(pred, mask, chunk_size) 
-    total_loss = mse + lambda_triangle * triangle_loss
-    return total_loss, mse, triangle_loss
+    total_loss = l1 + lambda_triangle * triangle_loss
+    
+    return total_loss, l1, triangle_loss
 

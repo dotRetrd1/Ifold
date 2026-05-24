@@ -70,7 +70,8 @@ def train_ifold():
         model.train() 
         
         epoch_loss = 0.0
-        epoch_mse = 0.0
+        epoch_l1 = 0.0
+        #epoch_mse = 0.0
         epoch_triangle = 0.0
         
         for batch_idx, (features, targets, masks) in enumerate(dataloader):
@@ -84,7 +85,8 @@ def train_ifold():
             #forward Pass
             with autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 predictions = model(features)
-                total_loss, mse, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=7.5)
+                #l1 instead of mse
+                total_loss, l1, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=7.5)
             
             #backward Pass
             scaler.scale(total_loss).backward()
@@ -95,14 +97,14 @@ def train_ifold():
             
             #for logging
             epoch_loss += total_loss.item()
-            epoch_mse += mse.item()
+            epoch_l1 += l1.item()
             epoch_triangle += penalty.item()
             
         avg_loss = epoch_loss / len(dataloader)
-        avg_mse = epoch_mse / len(dataloader)
+        avg_l1 = epoch_l1 / len(dataloader)
         avg_triangle = epoch_triangle / len(dataloader)
         
-        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | MSE: {avg_mse:.4f} | Triangle: {avg_triangle:.4f}")
+        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Triangle: {avg_triangle:.4f}")
 
         #save (every 10 epochs)
         if (epoch + 1) % 10 == 0:
