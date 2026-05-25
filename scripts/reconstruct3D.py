@@ -1,38 +1,33 @@
 import numpy as np
 import plotly.graph_objects as go
 
-""""" TO DO: Set up config instead of pathing and hardcode
-import yaml
-
-with open("config.yaml", "r") as f:
-    config = yaml.safe_load(f)
-"""
 
 def distance_to_3d(dist_matrix):
 
-#translate 2D distance matrix to 3D coors (eigendecomposition of the Gram matrix)
+    dist_matrix = (dist_matrix + dist_matrix.T) / 2
+    np.fill_diagonal(dist_matrix, 0.0)
+    dist_matrix = np.maximum(dist_matrix, 0.0)
+
     N = dist_matrix.shape[0]
-    
+
     D_sq = dist_matrix ** 2
-    #create the Centering Matrix (J) to move the protein to the origin
-    #J = I - (1/N) * 1 * 1^T
+
     J = np.eye(N) - np.ones((N, N)) / N
-    
-    #calc the Gram Matrix (G) (double centering)
+
     G = -0.5 * J.dot(D_sq).dot(J)
+
     eigenvalues, eigenvectors = np.linalg.eigh(G)
-    
-    #sortin descending order (largest first)
+
     idx = np.argsort(eigenvalues)[::-1]
+
     eigenvalues = eigenvalues[idx]
     eigenvectors = eigenvectors[:, idx]
-    
-    #(prevent complex numbers)
-    top_3_evals = np.maximum(eigenvalues[:3], 0)
+
+    top_3_evals = np.maximum(eigenvalues[:3], 1e-8)
     top_3_evecs = eigenvectors[:, :3]
-    
-    coords = top_3_evecs * np.sqrt(top_3_evals)
-    
+
+    coords = top_3_evecs @ np.diag(np.sqrt(top_3_evals))
+
     return coords
 
 def kabsch_align(P, Q):
@@ -65,17 +60,27 @@ def kabsch_align(P, Q):
     return P_aligned
 
 
-def visualize_protein_3d(true_coords, pred_coords):
+def visualize_protein_3d(pred_coords, true_coords=None):
     fig = go.Figure()
 
-    #Apply Kabsch Alignment (if true_coords exist)
     if true_coords is not None:
-        if true_coords.shape == pred_coords.shape:
-            pred_coords = kabsch_align(pred_coords, true_coords)
-        else:
+        pred_len = pred_coords.shape[0]
+        true_len = true_coords.shape[0]
+
+        min_len = min(pred_len, true_len)
+
+        if pred_len != true_len:
             print(f"[!] Shape mismatch: Prediction is {pred_coords.shape}, Ground Truth is {true_coords.shape}.")
-            print("[!] Skipping 3D alignment. Displaying Prediction only.")
-            true_coords = None #so doesnt crash
+            print(f"[!] Aligning first {min_len} residues.")
+
+        #align only overlapping region
+        aligned_overlap = kabsch_align(
+            pred_coords[:min_len],
+            true_coords[:min_len]
+        )
+
+        #replace aligned section back into prediction
+        pred_coords[:min_len] = aligned_overlap
 
     #iFold Prediction Trace (Red)
     fig.add_trace(go.Scatter3d(
@@ -107,5 +112,23 @@ def visualize_protein_3d(true_coords, pred_coords):
         legend=dict(x=0.02, y=0.98)
     )
     
-    fig.show()
+    from pathlib import Path
+    import tempfile
+    import webbrowser
+    import os
+    import time
+
+    temp_dir = tempfile.gettempdir()
+    temp_path = Path(temp_dir) / "protein_view.html"
+
+    fig.write_html(temp_path)
+
+    webbrowser.open(temp_path.as_uri())
+
+    #give browser a moment to open file
+    time.sleep(2)
+
+    #delete temp file
+    if temp_path.exists():
+        os.remove(temp_path)
     return fig

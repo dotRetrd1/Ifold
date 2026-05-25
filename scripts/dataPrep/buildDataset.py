@@ -47,8 +47,8 @@ if os.path.exists(cath_txt_path):
     os.remove(cath_txt_path)
 
 print("mode select:")
-print("1: General Pre-Training (all protein)")
-print("2: Specialized Fine-Tuning (Strictly Beta-Barrels)")
+print("1: General pre training (all protein)")
+print("2: Specialized training (Strictly BetaBarrels)")
 print("\n")
 mode = input("Enter 1 or 2: ")
 

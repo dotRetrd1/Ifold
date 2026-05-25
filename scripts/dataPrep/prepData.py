@@ -82,4 +82,4 @@ for file in data_path.glob("*_ca.npy"):
     processed_count += 1
     print(f" -> {pdb_id}: saved {feature_matrix.shape} input and {distance_matrix.shape} ground truth.")
 
-print(f"\nprep complete, formatted {processed_count} protein pairs for training.")
+print(f"\nprep complete, formatted {processed_count} proteins for training.")

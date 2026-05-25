@@ -14,6 +14,10 @@ from scripts.saveRes import save_output
 project_root = Path(__file__).parent
 config_path = project_root / "config.yaml"
 
+os.environ["MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK"] = "0"
+os.environ["PYTORCH_HIP_ALLOC_CONF"] = "garbage_collection_threshold:0.6,max_split_size_mb:128"
+os.environ["MIOPEN_LOG_LEVEL"] = "1" 
+
 if not config_path.exists():
     raise FileNotFoundError(f"Could not find {config_path}. Please ensure it is in the root directory.")
 
@@ -92,21 +96,20 @@ def fetch_ground_truth_from_pdb(pdb_id):
 #the model takes in an (N,4) so this just converts the sequence to it 
 def sequence_to_tensor(sequence):
     AA_TO_INDEX = {
-        'A':0, 'C':1, 'D':2, 'E':3,
-        'F':4, 'G':5, 'H':6, 'I':7,
-        'K':8, 'L':9, 'M':10,'N':11,
-        'P':12,'Q':13,'R':14,'S':15,
-        'T':16,'V':17,'W':18,'Y':19,
+        'A':0, 'R':1, 'N':2, 'D':3,
+        'C':4, 'E':5, 'Q':6, 'G':7,
+        'H':8, 'I':9, 'L':10,'K':11,
+        'M':12,'F':13,'P':14,'S':15,
+        'T':16,'W':17,'Y':18,'V':19,
         'X':20
     }
 
-    def sequence_to_tensor(sequence):
-        indices = [
-            AA_TO_INDEX.get(aa.upper(), 20)
-            for aa in sequence
-        ]
+    indices = [
+        AA_TO_INDEX.get(aa.upper(), 20)
+        for aa in sequence
+    ]
 
-        return torch.tensor(indices, dtype=torch.long)
+    return torch.tensor(indices, dtype=torch.long)
 
 def main():
     parser = argparse.ArgumentParser(description="Predict 3D protein structure from sequence")
@@ -165,10 +168,10 @@ def main():
         pred_dist_tensor = model(features).squeeze(0)
     
     pred_dist_numpy = pred_dist_tensor.cpu().numpy()
-
+    pred_dist_numpy = (pred_dist_numpy + pred_dist_numpy.T) / 2
+    np.fill_diagonal(pred_dist_numpy, 0)
     #3D Reconstruction
     pred_coords = distance_to_3d(pred_dist_numpy)
-
     print(f"Finished!")
 
     #Fetch Ground Truth and Visualize

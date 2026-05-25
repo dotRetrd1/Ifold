@@ -9,12 +9,18 @@ paths:
 
 training:
   epochs: 40
-  batch_size: 4
-  learning_rate: 0.0001
-  pretrained_model: none
-  loss_chunk_size: 16
-  lambda_triangle: 0.5
-  checkpoint_interval: 10
+  batch_size: 6
+  learning_rate: 0.00005
+  pretrained_model: ifold_weights.pth
+
+  loss_chunk_size: 8
+
+  lambda_triangle: 0.01
+  lambda_local: 3.0
+
+  checkpoint_interval: 5
+
+  use_pretrained: true
 
 model:
   input_features: 4

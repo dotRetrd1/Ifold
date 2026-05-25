@@ -142,5 +142,6 @@ class iFoldResNet(nn.Module):
         out = self.final_conv(out) #shape: (B, 1, N, N)
         out = (out + out.transpose(-1, -2)) / 2 #Symmetrize the output
         out = F.relu(out)
+        out = torch.clamp(out, 0.0, 32.0)
         #(B, 1, N, N) -> (B, N, N)
         return out.squeeze(1)
