@@ -16,7 +16,11 @@ def train_ifold():
     #setup paths and hyperparams
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
-    data_dir = project_root / "data" / "trainingData" / "ca_coords"
+    mode = input("would you like to train on general proteins(1) or just Beta Barrels(2)? ").strip().lower()
+    if mode == "1":
+        data_dir = project_root / "data" / "trainingData" / "ca_coords"
+    else:
+        data_dir = project_root / "data" / "trainingData" / "BBData_ca_coords"
     weight_path = project_root / "data" / "models"
     
     BATCH_SIZE = config["training"]["batch_size"]
@@ -24,6 +28,7 @@ def train_ifold():
     EPOCHS = config["training"]["epochs"]
     CHUNK_SIZE = config["training"]["loss_chunk_size"]
     LAMBDA_TRIANGLE = config["training"]["lambda_triangle"]
+    LAMBDA_LOCAL = config["training"]["lambda_local"]
     USE_PRETRAINED = config["training"].get("use_pretrained", False)
     TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
     CHECKPOINT_INTERVAL = config["training"].get("checkpoint_interval", 10)
@@ -71,17 +76,28 @@ def train_ifold():
     for epoch in range(EPOCHS):
         model.train() 
         
-        if epoch < 5:
-            current_lambda = 0.0
-        elif epoch < 15:
-            current_lambda = 0.1
+        if USE_PRETRAINED:
+            current_triangle = LAMBDA_TRIANGLE
+            current_local = LAMBDA_LOCAL
+
         else:
-            current_lambda = 0.5
+            if epoch < 3:
+                current_triangle = 0.0
+                current_local = 1.0
+
+            elif epoch < 10:
+                current_triangle = 0.005
+                current_local = 2.0
+
+            else:
+                current_triangle = LAMBDA_TRIANGLE
+                current_local = LAMBDA_LOCAL
 
         epoch_loss = 0.0
         epoch_l1 = 0.0
         #epoch_mse = 0.0
         epoch_triangle = 0.0
+        epoch_local = 0.0
         
         for batch_idx, (features, targets, masks) in enumerate(dataloader):
             features = features.to(device)
@@ -95,25 +111,31 @@ def train_ifold():
             with autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 predictions = model(features)
                 #l1 instead of mse
-                total_loss, l1, penalty = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=current_lambda)
+                loss, l1, local_loss, triangle_loss = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=current_triangle, lambda_local=current_local
+            )
             
             #backward Pass
-            scaler.scale(total_loss).backward()
+            scaler.scale(loss).backward()
+
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             
             #update the weights
             scaler.step(optimizer)
             scaler.update()
             
             #for logging
-            epoch_loss += total_loss.item()
+            epoch_loss += loss.item()
             epoch_l1 += l1.item()
-            epoch_triangle += penalty.item()
+            epoch_local += local_loss.item()
+            epoch_triangle += triangle_loss.item()
             
         avg_loss = epoch_loss / len(dataloader)
         avg_l1 = epoch_l1 / len(dataloader)
+        avg_local = epoch_local / len(dataloader)
         avg_triangle = epoch_triangle / len(dataloader)
         
-        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Triangle: {avg_triangle:.4f}")
+        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Local: {avg_local:.4f} | Triangle: {avg_triangle:.4f}")
 
         #save (every CHECKPOINT_INTERVAL epochs)
         if (epoch + 1) % CHECKPOINT_INTERVAL == 0:

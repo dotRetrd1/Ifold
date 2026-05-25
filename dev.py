@@ -64,7 +64,7 @@ def render_result(args):
     webbrowser.open(f"file://{html_file.resolve()}")
 
 def main():
-    parser = argparse.ArgumentParser(description="iFold Developer CLI: Manage data, training, and results.")
+    parser = argparse.ArgumentParser(description="iFold Developer CLI")
     subparsers = parser.add_subparsers(title="Commands", dest="command", required=True)
 
     #Data

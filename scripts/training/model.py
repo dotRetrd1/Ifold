@@ -2,8 +2,13 @@ import yaml
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 
-with open("config.yaml", "r") as f:
+script_dir = Path(__file__).parent
+project_root = script_dir.parent.parent
+config_path = project_root / "config.yaml"
+
+with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 class dimUp(nn.Module):
@@ -20,30 +25,63 @@ class dimUp(nn.Module):
         pair_representation = torch.cat([x_i, x_j], dim=-1) # B x N x N x 2C
 
         return pair_representation.permute(0,3,1,2)
+    
+class RelativePositionEncoding(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, N, device):
+        indices = torch.arange(N, device=device)
+
+        #pairwise |i-j|
+        rel_dist = torch.abs(
+            indices.unsqueeze(0) - indices.unsqueeze(1)
+        ).float()
+
+        #normalize to [0,1]
+        rel_dist = rel_dist / float(max(N - 1, 1))
+
+        #shape: (1,1,N,N)
+        return rel_dist.unsqueeze(0).unsqueeze(0)
 
 class DilatedResidualBlock(nn.Module):
     def __init__(self, channels, dilation=1):
         super().__init__()
-        #padding scale with dilation to keep the N x N grid the same size
+
         padding = dilation
-        
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=padding, dilation=dilation)
+
+        self.conv1 = nn.Conv2d(
+            channels,
+            channels,
+            kernel_size=3,
+            padding=padding,
+            dilation=dilation
+        )
+
         self.bn1 = nn.BatchNorm2d(channels)
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=padding, dilation=dilation)
+
+        self.conv2 = nn.Conv2d(
+            channels,
+            channels,
+            kernel_size=3,
+            padding=padding,
+            dilation=dilation
+        )
+
         self.bn2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
         residual = x
-        
+
         out = self.conv1(x)
-        #out = self.bn1(out)
+        out = self.bn1(out)
         out = F.relu(out)
-        
+
         out = self.conv2(out)
-        #out = self.bn2(out)
-        
-        #skip connection
+        out = self.bn2(out)
+
         out += residual
+
         return F.relu(out)
 
 input_feat = config['model']['input_features']
@@ -55,10 +93,24 @@ class iFoldResNet(nn.Module):
     def __init__(self, input_features=input_feat, hidden_channels=hidden, num_blocks=blocks):
         super().__init__()
         
+        self.embedding_dim = 16
+
+        #21 residue types including unknown token
+        self.embedding = nn.Embedding(
+            21,
+            self.embedding_dim,
+            padding_idx=20
+        )
+
         self.dim_jump = dimUp()
-        
-        #4 features per amino acid * 2 (concatenated) = 8 initial channels
-        self.initial_conv = nn.Conv2d(input_features * 2, hidden_channels, kernel_size=1)
+        self.rel_pos = RelativePositionEncoding()
+
+        #two embedded residues concatenated
+        self.initial_conv = nn.Conv2d(
+            self.embedding_dim * 2 + 1,
+            hidden_channels,
+            kernel_size=1
+        )
         
         blocks = []
         for i in range(num_blocks):
@@ -73,8 +125,21 @@ class iFoldResNet(nn.Module):
 
 #main
     def forward(self, x):
-        #1D to 2D 
-        out = self.dim_jump(x) #shape: (B, 8, N, N)
+        x = self.embedding(x)
+
+        B, N, C = x.shape
+
+        #pairwise residue features
+        out = self.dim_jump(x)
+
+        #relative sequence distance channel
+        rel_pos = self.rel_pos(N, x.device)
+
+        #expand across batch
+        rel_pos = rel_pos.expand(B, -1, -1, -1)
+
+        #append as extra channel
+        out = torch.cat([out, rel_pos], dim=1)
         out = self.initial_conv(out) #shape: (B, 64, N, N)
         #Convolutions
         out = self.resnet_blocks(out) #shape: (B, 64, N, N)
@@ -82,5 +147,6 @@ class iFoldResNet(nn.Module):
         out = self.final_conv(out) #shape: (B, 1, N, N)
         out = (out + out.transpose(-1, -2)) / 2 #Symmetrize the output
         out = F.relu(out)
+        out = torch.clamp(out, 0.0, 32.0)
         #(B, 1, N, N) -> (B, N, N)
         return out.squeeze(1)

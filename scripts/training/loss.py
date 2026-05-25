@@ -30,11 +30,13 @@ def triangle_inequality_loss(pred, mask, chunk_size):
     total_violation = 0.0
     total_valid_elements = 0.0
     
-    d_kj = pred.unsqueeze(1)
-    mask_kj = mask.unsqueeze(1)
+    
     
     for start_i in range(0, N, chunk_size):
         end_i = min(start_i + chunk_size, N)
+
+        d_kj = pred.unsqueeze(1)
+        mask_kj = mask.unsqueeze(1)
         
         d_ik_chunk = pred[:, start_i:end_i, :].unsqueeze(2)
         d_ij_chunk = pred[:, start_i:end_i, :].unsqueeze(3)
@@ -57,10 +59,60 @@ def triangle_inequality_loss(pred, mask, chunk_size):
         
     return total_violation / (total_valid_elements + 1e-8)
 
-def total_loss(pred, target, mask, chunk_size, lambda_triangle=0.1):
+def local_distance_loss(pred, target, mask, local_radius=6):
+    B, N, _ = pred.shape
+
+    device = pred.device
+
+    indices = torch.arange(N, device=device)
+
+    #|i-j|
+    seq_sep = torch.abs(
+        indices.unsqueeze(0) - indices.unsqueeze(1)
+    )
+
+    local_mask = seq_sep <= local_radius
+    local_mask = local_mask.unsqueeze(0) #(1,N,N)
+
+    combined_mask = mask & local_mask
+
+    masked_diff = torch.abs(pred - target) * combined_mask.float()
+
+    valid = combined_mask.sum()
+
+    if valid == 0:
+        return torch.tensor(0.0, device=device, requires_grad=True)
+
+    return masked_diff.sum() / valid
+
+def total_loss(
+    pred,
+    target,
+    mask,
+    chunk_size,
+    lambda_triangle=0.02,
+    lambda_local=2.0
+):
     l1 = masked_l1_loss(pred, target, mask)
-    triangle_loss = triangle_inequality_loss(pred, mask, chunk_size) 
-    total_loss = l1 + lambda_triangle * triangle_loss
-    
-    return total_loss, l1, triangle_loss
+
+    local_loss = local_distance_loss(
+        pred,
+        target,
+        mask,
+        local_radius=6
+    )
+
+    triangle_loss = triangle_inequality_loss(
+        pred,
+        mask,
+        chunk_size
+    )
+
+    total_loss = (
+        l1
+        + lambda_local * local_loss
+        + lambda_triangle * triangle_loss
+    )
+
+    return total_loss, l1, local_loss, triangle_loss
 
