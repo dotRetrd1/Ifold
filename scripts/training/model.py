@@ -2,8 +2,13 @@ import yaml
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 
-with open("config.yaml", "r") as f:
+script_dir = Path(__file__).parent
+project_root = script_dir.parent.parent
+config_path = project_root / "config.yaml"
+
+with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 class dimUp(nn.Module):

@@ -10,7 +10,7 @@ def evaluate_ifold():
     script_dir = Path(__file__).parent
     project_root = script_dir.parent.parent
     data_dir = project_root / "data" / "trainingData" / "ca_coords"
-    weights_path = script_dir / "ifold_weights.pth"                 #currently just takes the latest weight stored in the training folder
+    weights_path = project_root / "data" / "models" / "ifold_weights.pth"                 
 
     if not weights_path.exists():
         print("Error: Could not find ifold_weights.pth. chceck that training finished and the weights are in the right place.")
@@ -38,31 +38,67 @@ def evaluate_ifold():
     print(f"Testing on protein with length {seq_len} Amino Acids.")
 
     print("Running Inference...")
-    with torch.no_grad(): 
+
+    with torch.no_grad():
         pred_dist = model(features)
-        
-    #remove batch dimension and slice off the zero-padding so only physical protein
-    pred_dist = pred_dist.squeeze(0)[:seq_len, :seq_len].numpy()
-    true_dist = true_dist[:seq_len, :seq_len].numpy()
+
+    #remove batch dimension
+    pred_dist = pred_dist.squeeze(0)
+
+    #crop to real sequence length
+    pred_dist = pred_dist[:seq_len, :seq_len]
+    true_dist = true_dist[:seq_len, :seq_len]
+    mask = mask[:seq_len, :seq_len]
+
+    #move to cpu numpy
+    pred_dist = pred_dist.cpu().numpy()
+    true_dist = true_dist.cpu().numpy()
+    mask = mask.cpu().numpy()
+
+    #clean prediction
+    pred_dist = (pred_dist + pred_dist.T) / 2.0
+    pred_dist = pred_dist * mask
+
+    #metrics
+    abs_error = abs(pred_dist - true_dist)
+
+    mae = abs_error[mask].mean()
+    rmse = ((abs_error[mask] ** 2).mean()) ** 0.5
+
+    print(f"\n2D Distance Map Metrics:")
+    print(f"MAE  : {mae:.4f} Å")
+    print(f"RMSE : {rmse:.4f} Å")
 
     print("Rendering comparison...")
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    
-    #plot Ground Truth
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+    #ground truth
     im1 = axes[0].imshow(true_dist, cmap='viridis')
-    axes[0].set_title("True Physical Distances (Ground Truth)")
-    axes[0].set_xlabel("Residue Index i")
-    axes[0].set_ylabel("Residue Index j")
-    fig.colorbar(im1, ax=axes[0], label="Distance (Å)")
-    
-    #plot iFold Prediction
+    axes[0].set_title("Ground Truth")
+    axes[0].set_xlabel("Residue i")
+    axes[0].set_ylabel("Residue j")
+    fig.colorbar(im1, ax=axes[0])
+
+    #prediction
     im2 = axes[1].imshow(pred_dist, cmap='viridis')
-    axes[1].set_title("iFold Predictions")
-    axes[1].set_xlabel("Residue Index i")
-    axes[1].set_ylabel("Residue Index j")
-    fig.colorbar(im2, ax=axes[1], label="Distance (Å)")
-    
-    plt.suptitle("eval map", fontsize=16)
+    axes[1].set_title("Prediction")
+    axes[1].set_xlabel("Residue i")
+    axes[1].set_ylabel("Residue j")
+    fig.colorbar(im2, ax=axes[1])
+
+    #error map
+    im3 = axes[2].imshow(abs_error, cmap='hot')
+    axes[2].set_title("Absolute Error")
+    axes[2].set_xlabel("Residue i")
+    axes[2].set_ylabel("Residue j")
+    fig.colorbar(im3, ax=axes[2])
+
+    plt.suptitle(
+        f"iFold Evaluation | MAE={mae:.2f}Å | RMSE={rmse:.2f}Å",
+        fontsize=16
+    )
+
     plt.tight_layout()
     plt.show()
 
