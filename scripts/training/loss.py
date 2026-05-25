@@ -85,13 +85,34 @@ def local_distance_loss(pred, target, mask, local_radius=6):
 
     return masked_diff.sum() / valid
 
+def contact_map_loss(pred, target, mask, threshold=8.0):
+    true_contacts = (target < threshold).float()
+
+    contact_logits = threshold - pred
+
+    valid_logits = contact_logits[mask]
+    valid_true = true_contacts[mask]
+
+    if valid_true.numel() == 0:
+        return torch.tensor(
+            0.0,
+            device=pred.device,
+            requires_grad=True
+        )
+
+    return F.binary_cross_entropy_with_logits(
+        valid_logits,
+        valid_true
+    )
+
 def total_loss(
     pred,
     target,
     mask,
     chunk_size,
     lambda_triangle=0.02,
-    lambda_local=2.0
+    lambda_local=2.0,
+    lambda_contact=0.5
 ):
     l1 = masked_l1_loss(pred, target, mask)
 
@@ -108,11 +129,20 @@ def total_loss(
         chunk_size
     )
 
+    contact_loss = contact_map_loss(
+        pred,
+        target,
+        mask,
+        threshold=8.0
+    )
+
     total_loss = (
         l1
         + lambda_local * local_loss
         + lambda_triangle * triangle_loss
+        + lambda_contact * contact_loss
     )
 
-    return total_loss, l1, local_loss, triangle_loss
+
+    return total_loss, l1, local_loss, triangle_loss, contact_loss
 

@@ -114,7 +114,7 @@ class iFoldResNet(nn.Module):
         
         blocks = []
         for i in range(num_blocks):
-            #[1, 2, 4, 8, 16, 32]
+            #[1, 2, 4, 8, 16, 32, 64]
             dilation = min(2 ** i, 32)
             blocks.append(DilatedResidualBlock(hidden_channels, dilation=dilation))
             
@@ -147,6 +147,6 @@ class iFoldResNet(nn.Module):
         out = self.final_conv(out) #shape: (B, 1, N, N)
         out = (out + out.transpose(-1, -2)) / 2 #Symmetrize the output
         out = F.relu(out)
-        out = torch.clamp(out, 0.0, 32.0)
+        out = torch.clamp(out, 0.0, 64.0)
         #(B, 1, N, N) -> (B, N, N)
         return out.squeeze(1)

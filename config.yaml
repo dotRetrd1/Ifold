@@ -8,15 +8,16 @@ paths:
   scripts_datascripts: "./scripts/dataPrep"
 
 training:
-  epochs: 30
-  batch_size: 8
+  epochs: 100
+  batch_size: 12
   learning_rate: 0.00002
   pretrained_model: ifold_weights.pth
 
   loss_chunk_size: 8
 
   lambda_triangle: 0.15
-  lambda_local: 4
+  lambda_local: 0.6
+  lambda_contact: 0.25
 
   checkpoint_interval: 5
 

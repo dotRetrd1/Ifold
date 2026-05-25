@@ -29,6 +29,7 @@ def train_ifold():
     CHUNK_SIZE = config["training"]["loss_chunk_size"]
     LAMBDA_TRIANGLE = config["training"]["lambda_triangle"]
     LAMBDA_LOCAL = config["training"]["lambda_local"]
+    LAMBDA_CONTACT = config["training"]["lambda_contact"]
     USE_PRETRAINED = config["training"].get("use_pretrained", False)
     TRANSFER_LEARNING_CHECKPOINT = config["training"]["pretrained_model"]
     CHECKPOINT_INTERVAL = config["training"].get("checkpoint_interval", 10)
@@ -79,6 +80,7 @@ def train_ifold():
         if USE_PRETRAINED:
             current_triangle = LAMBDA_TRIANGLE
             current_local = LAMBDA_LOCAL
+            current_contact = LAMBDA_CONTACT
 
         else:
             if epoch < 3:
@@ -98,6 +100,7 @@ def train_ifold():
         #epoch_mse = 0.0
         epoch_triangle = 0.0
         epoch_local = 0.0
+        epoch_contact = 0.0
         
         for batch_idx, (features, targets, masks) in enumerate(dataloader):
             features = features.to(device)
@@ -111,8 +114,7 @@ def train_ifold():
             with autocast(device_type=device.type, enabled=(device.type == 'cuda')):
                 predictions = model(features)
                 #l1 instead of mse
-                loss, l1, local_loss, triangle_loss = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=current_triangle, lambda_local=current_local
-            )
+                loss, l1, local_loss, triangle_loss, contact_loss = ifold_loss(predictions, targets, masks, chunk_size=CHUNK_SIZE, lambda_triangle=current_triangle, lambda_local=current_local, lambda_contact=current_contact)
             
             #backward Pass
             scaler.scale(loss).backward()
@@ -129,13 +131,15 @@ def train_ifold():
             epoch_l1 += l1.item()
             epoch_local += local_loss.item()
             epoch_triangle += triangle_loss.item()
+            epoch_contact += contact_loss.item()
             
         avg_loss = epoch_loss / len(dataloader)
         avg_l1 = epoch_l1 / len(dataloader)
         avg_local = epoch_local / len(dataloader)
         avg_triangle = epoch_triangle / len(dataloader)
+        avg_contact = epoch_contact / len(dataloader)
         
-        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Local: {avg_local:.4f} | Triangle: {avg_triangle:.4f}")
+        print(f"Epoch {epoch+1}/{EPOCHS} | Total Loss: {avg_loss:.4f} | L1: {avg_l1:.4f} | Local: {avg_local:.4f} | Triangle: {avg_triangle:.4f} | Contact: {avg_contact:.4f}")
 
         #save (every CHECKPOINT_INTERVAL epochs)
         if (epoch + 1) % CHECKPOINT_INTERVAL == 0:

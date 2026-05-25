@@ -1,9 +1,14 @@
 import torch
 import matplotlib.pyplot as plt
 from pathlib import Path
+import os
 
 from BBDataSet import BBDataset
 from model import iFoldResNet
+
+os.environ["MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK"] = "0"
+os.environ["PYTORCH_HIP_ALLOC_CONF"] = "garbage_collection_threshold:0.6,max_split_size_mb:128"
+os.environ["MIOPEN_LOG_LEVEL"] = "1"  #Suppress MIOpen warnings
 
 def evaluate_ifold():
     #setup paths
