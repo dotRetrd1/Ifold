@@ -10,7 +10,7 @@ paths:
 training:
   epochs: 100
   batch_size: 12
-  learning_rate: 0.00002
+  learning_rate: 0.000005
   pretrained_model: ifold_weights.pth
 
   loss_chunk_size: 8
@@ -19,7 +19,7 @@ training:
   lambda_local: 0.6
   lambda_contact: 0.25
 
-  checkpoint_interval: 5
+  checkpoint_interval: 15
 
   use_pretrained: true
 
