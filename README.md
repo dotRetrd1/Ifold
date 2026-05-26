@@ -38,12 +38,12 @@ If you are working on the model itself, use the `dev.py` CLI to run the pipeline
 
 **1. Data Preparation**
 To download targets from the CATH/RCSB databases:
-`python main.py data`
+`python dev.py data`
 *(Just follow the prompts in the terminal to choose how many proteins to download).*
 
 **2. Training**
 Make sure your hyperparameters (epochs, batch size, learning rate, etc..) are set in `config.yaml`, then run:
-`python main.py train`
+`python dev.py train`
 *This will output backup checkpoints every x [deafult=10] epochs to your models directory.*
 
 **3. Review Results**
@@ -58,7 +58,7 @@ this will display:
 
 **Render previous prediction (in 3D)**
 To reopen a saved prediction without rerunning inference:
-`python main.py render [folder_name]`
+`python dev.py render [folder_name]`
 
 **Current Architecture**
 The model currently:
