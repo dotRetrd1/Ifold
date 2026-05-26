@@ -2,5 +2,6 @@ venv/
 
 __pycache__/
 
-data/
+data/trainingData/ca_coords
+data/trainingData/temp
 *.cif
